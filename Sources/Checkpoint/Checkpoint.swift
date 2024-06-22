@@ -9,28 +9,28 @@ import Redis
 import Vapor
 
 final class Checkpoint {
-	let limiter: any Limiter
+	let algorithm: any Algorithm
 	
-	init(using algorithm: some Limiter) {
-		self.limiter = algorithm
+	init(using algorithm: some Algorithm) {
+		self.algorithm = algorithm
 	}
 }
 
 extension Checkpoint: AsyncMiddleware {
 	func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-		limiter.logging?.info("👉 RateLimitMiddleware request")
+		algorithm.logging?.info("👉 RateLimitMiddleware request")
 		let response = try await next.respond(to: request)
-		limiter.logging?.info("👈 RateLimitMiddleware reponse")
+		algorithm.logging?.info("👈 RateLimitMiddleware reponse")
 		
 		do {
 			try await checkRateLimitFor(request: request)
 			response.headers.add(name: "X-App-Version", value: "v1.0.0")
-			limiter.logging?.info("💡 Header Setted.")
+			algorithm.logging?.info("💡 Header Setted.")
 		} catch let abort as AbortError {
 			throw abort
 		} catch {
 			response.headers.add(name: "X-Rate-Limit", value: "8")
-			limiter.logging?.info("🚨 Header Setted.")
+			algorithm.logging?.info("🚨 Header Setted.")
 			throw Abort(.tooManyRequests,
 						headers: response.headers,
 						reason: HTTPErrorDescription.rateLimitReached)
@@ -40,7 +40,7 @@ extension Checkpoint: AsyncMiddleware {
 	}
 	
 	private func checkRateLimitFor(request: Request) async throws {
-		try await limiter.checkRequest(request)
+		try await algorithm.checkRequest(request)
 	}
 }
 

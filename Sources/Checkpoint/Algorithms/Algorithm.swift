@@ -12,7 +12,7 @@ import Vapor
 public typealias StorageAction = () -> Application.Redis
 public typealias LoggerAction = () -> Logger
 
-public protocol Limiter: Sendable {
+public protocol Algorithm: Sendable {
 	associatedtype ConfigurationType
 	
 	var storage: Application.Redis { get }
@@ -23,7 +23,7 @@ public protocol Limiter: Sendable {
 	func checkRequest(_ request: Request) async throws
 }
 
-extension Limiter {
+extension Algorithm {
 	func valueFor(field: Field, in request: Request) throws -> String {
 		switch field {
 			case .header(let key):
@@ -68,7 +68,7 @@ extension Limiter {
 	}
 }
 
-extension Limiter {
+extension Algorithm {
 	static var none: String {
 		"no-key"
 	}

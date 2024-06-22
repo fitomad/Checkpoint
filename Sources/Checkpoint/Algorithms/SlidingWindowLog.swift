@@ -20,7 +20,7 @@ public final class SlidingWindowLog {
 	}
 }
 
-extension SlidingWindowLog: Limiter {	
+extension SlidingWindowLog: Algorithm {	
 	var isValidRequest: Bool {
 		return true
 	}

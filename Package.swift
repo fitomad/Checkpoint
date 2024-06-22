@@ -32,7 +32,10 @@ let package = Package(
 		),
         .testTarget(
             name: "CheckpointTests",
-            dependencies: ["Checkpoint"]
+            dependencies: [
+				"Checkpoint",
+				.product(name: "XCTVapor", package: "vapor")
+			]
         ),
     ]
 )

@@ -47,7 +47,7 @@ public final class LeakingBucket {
 	}
 }
 
-extension LeakingBucket: WindowBasedLimiter {
+extension LeakingBucket: WindowBasedAlgorithm {
 	var isValidRequest: Bool {
 		return true
 	}

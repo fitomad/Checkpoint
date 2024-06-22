@@ -48,7 +48,7 @@ public final class TokenBucket {
 	}
 }
 
-extension TokenBucket: WindowBasedLimiter {
+extension TokenBucket: WindowBasedAlgorithm {
 	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return

@@ -40,7 +40,7 @@ public final class FixedWindowCounter {
 	}
 }
 
-extension FixedWindowCounter: WindowBasedLimiter {
+extension FixedWindowCounter: WindowBasedAlgorithm {
 	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return

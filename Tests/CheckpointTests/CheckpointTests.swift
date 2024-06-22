@@ -1,4 +1,5 @@
 import XCTest
+import XCTVapor
 @testable import Checkpoint
 
 final class CheckpointTests: XCTestCase {

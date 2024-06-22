@@ -10,12 +10,12 @@ import Foundation
 
 public typealias WindowBasedAction = () throws -> Void
 
-public protocol WindowBasedLimiter: Limiter {
+public protocol WindowBasedAlgorithm: Algorithm {
 	func startWindow(havingDuration seconds: Double, performing action: @escaping WindowBasedAction) -> AnyCancellable
 	func resetWindow() async throws
 }
 
-extension WindowBasedLimiter {
+extension WindowBasedAlgorithm {
 	public func startWindow(havingDuration seconds: Double, performing action: @escaping WindowBasedAction) -> AnyCancellable {
 		var cancellable = Timer.publish(every: seconds, on: .main, in: .common)
 			.autoconnect()

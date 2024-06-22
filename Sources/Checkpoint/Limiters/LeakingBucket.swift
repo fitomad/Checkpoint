@@ -18,19 +18,15 @@ import Vapor
  4. If the bucket is not full, we allow the request and add 1 token from the bucket.
  5. Tokens are removed at a fixed rate of r tokens per second. Let’s say 1 token per second.
 */
-final class LeakingBucket {
+public final class LeakingBucket {
 	private let configuration: LeakingBucketConfiguration
-	let storage: Application.Redis
-	let logging: Logger?
+	public let storage: Application.Redis
+	public let logging: Logger?
 	
 	private var cancellable: AnyCancellable?
 	private var keys = Set<String>()
 	
-	private var redisKey: RedisKey {
-		RedisKey("")
-	}
-	
-	init(configuration: () -> LeakingBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
+	public init(configuration: () -> LeakingBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
 		self.configuration = configuration()
 		self.storage = storage()
 		self.logging = logging?()
@@ -56,7 +52,7 @@ extension LeakingBucket: WindowBasedLimiter {
 		return true
 	}
 	
-	func checkRequest(_ request: Request) async throws {
+	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return
 		}
@@ -79,17 +75,21 @@ extension LeakingBucket: WindowBasedLimiter {
 		}
 	}
 	
-	func resetWindow() throws {
-		Task(priority: .userInitiated) {
-			let respValue = try await storage.get(redisKey).get()
-		
-			var newBucketSize = 0
+	public func resetWindow() throws {
+		keys.forEach { key in
+			Task(priority: .userInitiated) {
+				let redisKey = RedisKey(key)
+				
+				let respValue = try await storage.get(redisKey).get()
 			
-			if let currentBucketSize = respValue.int {
-				newBucketSize = currentBucketSize < configuration.tokenRemovingRate ? 0 : (currentBucketSize - configuration.tokenRemovingRate)
+				var newBucketSize = 0
+				
+				if let currentBucketSize = respValue.int {
+					newBucketSize = currentBucketSize < configuration.tokenRemovingRate ? 0 : (currentBucketSize - configuration.tokenRemovingRate)
+				}
+				
+				try await storage.decrement(redisKey, by: newBucketSize).get()
 			}
-			
-			try await storage.decrement(redisKey, by: newBucketSize).get()
 		}
 	}
 }

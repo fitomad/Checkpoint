@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum RateLimitScope {
+public enum RateLimitScope {
 	case api
 	case endpoint
 	case nonScope

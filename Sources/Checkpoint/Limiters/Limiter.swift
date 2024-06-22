@@ -6,12 +6,13 @@
 //
 
 import Combine
+import Redis
 import Vapor
 
-typealias StorageAction = () -> Application.Redis
-typealias LoggerAction = () -> Logger
+public typealias StorageAction = () -> Application.Redis
+public typealias LoggerAction = () -> Logger
 
-protocol Limiter: Sendable {
+public protocol Limiter: Sendable {
 	associatedtype ConfigurationType
 	
 	var storage: Application.Redis { get }

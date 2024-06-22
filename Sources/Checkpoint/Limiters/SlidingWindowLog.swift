@@ -8,12 +8,12 @@
 import Redis
 import Vapor
 
-final class SlidingWindowLog {
+public final class SlidingWindowLog {
 	private let configuration: SlidingWindowLogConfiguration
-	let storage: Application.Redis
-	let logging: Logger?
+	public let storage: Application.Redis
+	public let logging: Logger?
 	
-	init(configuration: () -> SlidingWindowLogConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
+	public init(configuration: () -> SlidingWindowLogConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
 		self.configuration = configuration()
 		self.storage = storage()
 		self.logging = logging?()
@@ -25,7 +25,7 @@ extension SlidingWindowLog: Limiter {
 		return true
 	}
 	
-	func checkRequest(_ request: Request) async throws {
+	public func checkRequest(_ request: Request) async throws {
 		guard let apiKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			throw Abort(.unauthorized, reason: Checkpoint.HTTPErrorDescription.unauthorized)
 		}

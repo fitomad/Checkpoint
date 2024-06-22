@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum TimeWindow {
+public enum TimeWindow {
 	case seconds(count: Int = 10)
 	case minutes(count: Int = 1)
 	case hours(count: Int = 1)

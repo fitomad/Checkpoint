@@ -18,15 +18,15 @@ import Vapor
  • We take 1 token out for each request and if there are enough tokens, then the request is processed.
  • The request is dropped if there aren’t enough tokens.
 */
-final class TokenBucket {
+public final class TokenBucket {
 	private let configuration: TokenBucketConfiguration
-	let storage: Application.Redis
-	let logging: Logger?
+	public let storage: Application.Redis
+	public let logging: Logger?
 	
 	private var cancellable: AnyCancellable?
 	private var keys = Set<String>()
 	
-	init(configuration: () -> TokenBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
+	public init(configuration: () -> TokenBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
 		self.configuration = configuration()
 		self.storage = storage()
 		self.logging = logging?()
@@ -49,7 +49,7 @@ final class TokenBucket {
 }
 
 extension TokenBucket: WindowBasedLimiter {
-	func checkRequest(_ request: Request) async throws {
+	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return
 		}
@@ -72,14 +72,21 @@ extension TokenBucket: WindowBasedLimiter {
 		}
 	}
 	
-	func resetWindow() throws {
-		let redisKeys = keys.map { RedisKey($0) }
-		
-		Task {
-			do {
-				try await storage.delete(redisKeys).get()
-			} catch let redisError {
-				logging?.error("🚨 Problem deleting keys: \(redisError.localizedDescription)")
+	public func resetWindow() throws {
+		keys.forEach { key in
+			Task(priority: .userInitiated) {
+				let redisKey = RedisKey(key)
+			
+				let respValue = try await storage.get(redisKey).get()
+			
+				var newRefillSize = configuration.refillTokenRate
+				
+				if let currentBucketSize = respValue.int {
+					let expectedBucketSize = currentBucketSize + configuration.refillTokenRate
+					newRefillSize = (expectedBucketSize >= configuration.bucketSize) ? 0 : configuration.refillTokenRate
+				}
+					
+				try await storage.increment(redisKey, by: newRefillSize).get()
 			}
 		}
 	}

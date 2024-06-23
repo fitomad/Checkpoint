@@ -9,7 +9,7 @@ import Redis
 import Vapor
 
 public typealias CheckpointAction = (Request) -> Void
-public typealias CheckpointErrorAction = (Request, Response, Error) -> Void
+public typealias CheckpointErrorAction = (Request, Response, AbortError) -> Void
 
 public final class Checkpoint {
 	private let algorithm: any Algorithm

@@ -9,7 +9,7 @@ import Redis
 import Vapor
 
 public typealias CheckpointAction = (Request) -> Void
-public typealias CheckpointErrorAction = (Request, Error) -> Void
+public typealias CheckpointErrorAction = (Request, Response, Error) -> Void
 
 public final class Checkpoint {
 	private let algorithm: any Algorithm
@@ -33,14 +33,14 @@ extension Checkpoint: AsyncMiddleware {
 			try await checkRateLimitFor(request: request)
 			didCheck?(request)
 		} catch let abort as AbortError {
-			didFail?(request, abort)
-			throw abort
-		} catch let error {
-			didFailWithTooManyRequest?(request, error)
+			switch abort.status {
+				case .tooManyRequests:
+					didFailWithTooManyRequest?(request, response, abort)
+				default:
+					didFail?(request, response, abort)
+			}
 			
-			throw Abort(.tooManyRequests,
-						headers: response.headers,
-						reason: HTTPErrorDescription.rateLimitReached)
+			throw abort
 		}
 
 		return response

@@ -9,7 +9,7 @@ import Redis
 import Vapor
 
 public typealias CheckpointAction = (Request) -> Void
-public typealias CheckpointErrorAction = (Request, Response, inout AbortError) -> Void
+public typealias CheckpointErrorAction = (Request, Response, Checkpoint.ErrorMetadata) -> Void
 
 public final class Checkpoint {
 	private let algorithm: any Algorithm
@@ -32,15 +32,23 @@ extension Checkpoint: AsyncMiddleware {
 			willCheck?(request)
 			try await checkRateLimitFor(request: request)
 			didCheck?(request)
-		} catch var abort as AbortError {
+		} catch let abort as AbortError {
+			let errorMetadata = ErrorMetadata()
+			
 			switch abort.status {
 				case .tooManyRequests:
-					didFailWithTooManyRequest?(request, response, &abort)
+					didFailWithTooManyRequest?(request, response, errorMetadata)
+					
+					throw Abort(.tooManyRequests,
+								headers: errorMetadata.httpHeaders,
+								reason: errorMetadata.reason)
 				default:
-					didFail?(request, response, &abort)
+					didFail?(request, response, errorMetadata)
+					
+					throw Abort(.badRequest,
+								headers: errorMetadata.httpHeaders,
+								reason: errorMetadata.reason)
 			}
-			
-			throw abort
 		}
 
 		return response
@@ -48,6 +56,27 @@ extension Checkpoint: AsyncMiddleware {
 	
 	private func checkRateLimitFor(request: Request) async throws {
 		try await algorithm.checkRequest(request)
+	}
+}
+
+public extension Checkpoint {
+	final class ErrorMetadata {
+		public var headers: [String : String]?
+		public var reason: String?
+		
+		var httpHeaders: HTTPHeaders {
+			var httpHeaders = HTTPHeaders()
+			
+			guard let headers else {
+				return httpHeaders
+			}
+			
+			for (key, content) in headers {
+				httpHeaders.add(name: key, value: content)
+			}
+			
+			return httpHeaders
+		}
 	}
 }
 

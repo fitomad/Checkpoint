@@ -67,7 +67,7 @@ extension TokenBucket: WindowBasedAlgorithm {
 		let bucketItemsCount = try await storage.decrement(redisKey).get()
 		logging?.info("⌚️ \(requestKey) = \(bucketItemsCount)")
 		// 2. If buckes is empty, throw an error
-		if bucketItemsCount <= 0 {
+		if bucketItemsCount < 0 {
 			throw Abort(.tooManyRequests)
 		}
 	}
@@ -79,11 +79,17 @@ extension TokenBucket: WindowBasedAlgorithm {
 			
 				let respValue = try await storage.get(redisKey).get()
 			
-				var newRefillSize = configuration.refillTokenRate
+				var newRefillSize = 0
 				
 				if let currentBucketSize = respValue.int {
-					let expectedBucketSize = currentBucketSize + configuration.refillTokenRate
-					newRefillSize = (expectedBucketSize >= configuration.bucketSize) ? 0 : configuration.refillTokenRate
+					switch currentBucketSize {
+						case ...0:
+							newRefillSize -= currentBucketSize
+						case configuration.bucketSize...:
+							newRefillSize = configuration.bucketSize - currentBucketSize
+						default:
+							newRefillSize	= configuration.refillTokenRate
+					}
 				}
 					
 				try await storage.increment(redisKey, by: newRefillSize).get()

@@ -55,7 +55,7 @@ extension FixedWindowCounter: WindowBasedAlgorithm {
 		
 		let requestCount = try await storage.llen(of: redisKey).get()
 		
-		if requestCount > configuration.requestPerWindow {
+		if requestCount >= configuration.requestPerWindow {
 			throw Abort(.tooManyRequests)
 		}
 	}

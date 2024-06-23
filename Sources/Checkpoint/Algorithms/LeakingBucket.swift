@@ -70,7 +70,7 @@ extension LeakingBucket: WindowBasedAlgorithm {
 		let bucketItemsCount = try await storage.increment(redisKey).get()
 		logging?.info("⌚️ \(requestKey) = \(bucketItemsCount)")
 		// 2. If buckes is empty, throw an error
-		if bucketItemsCount >= configuration.bucketSize {
+		if bucketItemsCount > configuration.bucketSize {
 			throw Abort(.tooManyRequests)
 		}
 	}

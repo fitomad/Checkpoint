@@ -8,29 +8,36 @@
 import Redis
 import Vapor
 
-final class Checkpoint {
-	let algorithm: any Algorithm
+public typealias CheckpointAction = (Request) -> Void
+public typealias CheckpointErrorAction = (Request, Error) -> Void
+
+public final class Checkpoint {
+	private let algorithm: any Algorithm
 	
-	init(using algorithm: some Algorithm) {
+	public var willCheck: CheckpointAction?
+	public var didCheck: CheckpointAction?
+	public var didFailWithTooManyRequest: CheckpointErrorAction?
+	public var didFail: CheckpointErrorAction?
+	
+	public init(using algorithm: some Algorithm) {
 		self.algorithm = algorithm
 	}
 }
 
 extension Checkpoint: AsyncMiddleware {
-	func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-		algorithm.logging?.info("👉 RateLimitMiddleware request")
+	public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
 		let response = try await next.respond(to: request)
-		algorithm.logging?.info("👈 RateLimitMiddleware reponse")
 		
 		do {
+			willCheck?(request)
 			try await checkRateLimitFor(request: request)
-			response.headers.add(name: "X-App-Version", value: "v1.0.0")
-			algorithm.logging?.info("💡 Header Setted.")
+			didCheck?(request)
 		} catch let abort as AbortError {
+			didFail?(request, abort)
 			throw abort
-		} catch {
-			response.headers.add(name: "X-Rate-Limit", value: "8")
-			algorithm.logging?.info("🚨 Header Setted.")
+		} catch let error {
+			didFailWithTooManyRequest?(request, error)
+			
 			throw Abort(.tooManyRequests,
 						headers: response.headers,
 						reason: HTTPErrorDescription.rateLimitReached)
@@ -45,32 +52,8 @@ extension Checkpoint: AsyncMiddleware {
 }
 
 extension Checkpoint {
-	enum Constants {
-		static let apiKeyHeader = "X-ApiKey"
-		static let rateLimitDB = "rate-limit"
-	}
-	
 	enum HTTPErrorDescription {
 		static let unauthorized = "X-Api-Key header not available in the request"
 		static let rateLimitReached = "You have exceed your ApiKey network requests rate"
 	}
-}
-
-extension Checkpoint {
-	/*
-	enum Strategy {
-		case tokenBucket(configuration: TokenBucket.Configuration)
-		case leakingBucket(configuration: LeakingBucket.Configuration)
-		case fixedWindowCounter(configuration: FixedWindowCounter.Configuration)
-		case slidingWindowLog(configuration: SlidingWindowLog.Configuration)
-	}
-	*/
-	
-}
-
-enum Strategy {
-	case tokenBucket
-	case leakingBucket
-	case fixedWindowCounter
-	case slidingWindowLog
 }

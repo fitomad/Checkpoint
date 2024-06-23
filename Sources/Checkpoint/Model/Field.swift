@@ -10,5 +10,5 @@ import Foundation
 public enum Field {
 	case header(key: String)
 	case queryItem(key: String)
-	case none
+	case noField
 }

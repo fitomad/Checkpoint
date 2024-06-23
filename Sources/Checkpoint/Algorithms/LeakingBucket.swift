@@ -42,7 +42,7 @@ public final class LeakingBucket {
 		do {
 			try await storage.set(key, to: 0).get()
 		} catch let redisError {
-			logging?.error("🚨 Problem setting key \(key.rawValue) to value \(configuration.bucketSize)")
+			logging?.error("🚨 Problem setting key \(key.rawValue) to value \(configuration.bucketSize): \(redisError.localizedDescription)")
 		}
 	}
 }
@@ -60,7 +60,7 @@ extension LeakingBucket: WindowBasedAlgorithm {
 		keys.insert(requestKey)
 		let redisKey = RedisKey(requestKey)
 		
-		let keyExists = await try storage.exists(redisKey).get()
+		let keyExists = try await storage.exists(redisKey).get()
 		
 		if keyExists == 0 {
 			await preparaStorageFor(key: redisKey)

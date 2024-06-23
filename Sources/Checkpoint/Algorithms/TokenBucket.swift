@@ -57,7 +57,7 @@ extension TokenBucket: WindowBasedAlgorithm {
 		keys.insert(requestKey)
 		let redisKey = RedisKey(requestKey)
 		
-		let keyExists = await try storage.exists(redisKey).get()
+		let keyExists = try await storage.exists(redisKey).get()
 		
 		if keyExists == 0 {
 			await preparaStorageFor(key: redisKey)

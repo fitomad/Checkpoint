@@ -28,37 +28,37 @@ extension Algorithm {
 		switch field {
 			case .header(let key):
 				guard let value = request.headers[key].first else {
-					throw Abort(.unauthorized, reason: "")
+					throw Abort(.unauthorized, reason: Self.noFieldMessage)
 				}
 				
 				return value
 			case .queryItem(let key):
 				guard let value = request.query[String.self, at: key] else {
-					throw Abort(.unauthorized, reason: "")
+					throw Abort(.unauthorized, reason: Self.noFieldMessage)
 				}
 				
 				return value
-			case .none:
-				return Self.none
+			case .noField:
+				return Self.fieldDefaultKey
 		}
 	}
 	
-	func valueFor(scope: RateLimitScope, in request: Request) throws -> String {
+	func valueFor(scope: Scope, in request: Request) throws -> String {
 		switch scope {
 			case .endpoint:
 				return request.url.path
 			case .api:
 				guard let host = request.url.host else {
-					throw Abort(.badRequest, reason: "")
+					throw Abort(.badRequest, reason: Self.hostNotFoundMessage)
 				}
 				
 				return host
-			case .nonScope:
-				return Self.nonScope
+			case .noScope:
+				return Self.scopeDefaultKey
 		}
 	}
 	
-	func valueFor(field: Field, in request: Request, inside scope: RateLimitScope) throws -> String {
+	func valueFor(field: Field, in request: Request, inside scope: Scope) throws -> String {
 		let prefix = try valueFor(field: field, in: request)
 		let suffix = try valueFor(scope: scope, in: request)
 		
@@ -69,11 +69,19 @@ extension Algorithm {
 }
 
 extension Algorithm {
-	static var none: String {
-		"no-key"
+	static var fieldDefaultKey: String {
+		"checkpoint#no.field"
 	}
 	
-	static var nonScope: String {
-		"non-scope"
+	static var scopeDefaultKey: String {
+		"checkpoint#no.scope"
+	}
+	
+	static var noFieldMessage: String {
+		"Expected field not found at headers or query parameters"
+	}
+	
+	static var hostNotFoundMessage: String {
+		"Unable to recover host from request"
 	}
 }

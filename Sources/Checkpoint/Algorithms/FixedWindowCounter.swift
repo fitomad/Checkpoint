@@ -51,11 +51,9 @@ extension FixedWindowCounter: WindowBasedAlgorithm {
 		let redisKey = RedisKey(requestKey)
 		let timestamp = Date.now.timeIntervalSince1970
 		
-		storage.rpush([ timestamp ], into: redisKey)
+		let requestCount = try await storage.rpush([ timestamp ], into: redisKey).get()
 		
-		let requestCount = try await storage.llen(of: redisKey).get()
-		
-		if requestCount >= configuration.requestPerWindow {
+		if requestCount > configuration.requestPerWindow {
 			throw Abort(.tooManyRequests)
 		}
 	}

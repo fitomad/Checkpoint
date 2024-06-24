@@ -62,9 +62,13 @@ extension Algorithm {
 		let prefix = try valueFor(field: field, in: request)
 		let suffix = try valueFor(scope: scope, in: request)
 		
-		let key = String("\(prefix)\(suffix)".hash)
+		var hasher = Hasher()
+		hasher.combine(prefix)
+		hasher.combine(suffix)
 		
-		return key
+		let key = hasher.finalize()
+		
+		return String(key)
 	}
 }
 

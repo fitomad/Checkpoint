@@ -1,8 +1,8 @@
 //
-//  CheckpointApiKeyTests.swift
+//  CheckpointApiScopeTests.swift
 //  
 //
-//  Created by Adolfo Vera Blasco on 23/6/24.
+//  Created by Adolfo Vera Blasco on 24/6/24.
 //
 
 import Redis
@@ -10,8 +10,8 @@ import XCTest
 import XCTVapor
 @testable import Checkpoint
 
-final class CheckpointApiKeyTests: XCTestCase {
-	func testLeakingBucketWithHeader() {
+final class CheckpointApiScoreTests: XCTestCase {
+	func testLeakingBucketWithScopeApiHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -23,7 +23,8 @@ final class CheckpointApiKeyTests: XCTestCase {
 			LeakingBucketConfiguration(bucketSize: 10,
 									   removingRate: 5,
 									   removingTimeInterval: .minutes(count: 1),
-									   appliedTo: .header(key: "X-ApiKey"))
+									   appliedTo: .header(key: "X-ApiKey"),
+									   inside :.endpoint)
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -52,7 +53,7 @@ final class CheckpointApiKeyTests: XCTestCase {
 		}
 	}
 	
-	func testTokenBucketWithHeader() throws {
+	func testTokenBucketWithScopeApiHeader() throws {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -64,7 +65,8 @@ final class CheckpointApiKeyTests: XCTestCase {
 			TokenBucketConfiguration(bucketSize: 10,
 									 refillRate: 0,
 									 refillTimeInterval: .seconds(count: 20),
-									 appliedTo: .header(key: "X-ApiKey"))
+									 appliedTo: .header(key: "X-ApiKey"),
+									 inside: .endpoint)
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -95,7 +97,7 @@ final class CheckpointApiKeyTests: XCTestCase {
 		}
 	}
 	
-	func testFixedWindowCounterWithHeader() {
+	func testFixedWindowCounterScopeApiWithHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -106,7 +108,8 @@ final class CheckpointApiKeyTests: XCTestCase {
 		let fixedWindowAlgorithm = FixedWindowCounter {
 			FixedWindowCounterConfiguration(requestPerWindow: 10,
 											timeWindowDuration: .minutes(count: 2),
-											appliedTo: .header(key: "X-ApiKey"))
+											appliedTo: .header(key: "X-ApiKey"),
+											inside: .endpoint)
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -136,7 +139,7 @@ final class CheckpointApiKeyTests: XCTestCase {
 		}
 	}
 	
-	func testSlidingWindowLogWithHeader() {
+	func testSlidingWindowLogScopeApiWithHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -147,7 +150,8 @@ final class CheckpointApiKeyTests: XCTestCase {
 		let slidingWindowLogAlgorith = SlidingWindowLog {
 			SlidingWindowLogConfiguration(requestPerWindow: 10,
 										  windowDuration: .minutes(count: 2),
-										  appliedTo: .header(key: "X-ApiKey"))
+										  appliedTo: .header(key: "X-ApiKey"),
+										  inside: .endpoint)
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",

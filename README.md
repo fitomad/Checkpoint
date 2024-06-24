@@ -1,14 +1,14 @@
-#  Checkpoint
+# Checkpoint 💧
 
 A Rate-Limit middleware implementation for Vapor servers using Redis database.
 
 ```swift
 let tokenBucket = TokenBucket {
-	TokenBucketConfiguration(bucketSize: 5,
+	TokenBucketConfiguration(bucketSize: 25,
 							 refillRate: 5,
-							 refillTimeInterval: .seconds(count: 30),
+							 refillTimeInterval: .seconds(count: 45),
 							 appliedField: .header(key: "X-ApiKey"),
-							 scope: .nonScope)
+							 scope: .endpoint)
 } storage: {
 	application.redis("rate")
 } logging: {
@@ -17,6 +17,15 @@ let tokenBucket = TokenBucket {
 
 
 let checkpoint = Checkpoint(using: tokenBucket)
+
+// Modify response HTTP header and body response when rate limit exceed
+checkpoint.didFailWithTooManyRequest = { (request, response, metadata) in
+	metadata.headers = [
+		"X-RateLimit" : "Failure for request \(request.id)."
+	]
+	
+	metadata.reason = "Rate limit for your api key exceeded"
+}
 
 // 💧 Vapor Middleware
 app.middleware.use(checkpoint)
@@ -32,4 +41,4 @@ app.middleware.use(checkpoint)
 
 ### Sliding Window Log
 
-
+## Modify server response

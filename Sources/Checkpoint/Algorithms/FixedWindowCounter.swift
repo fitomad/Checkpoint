@@ -49,7 +49,7 @@ extension FixedWindowCounter: WindowBasedAlgorithm {
 		keys.insert(requestKey)
 		
 		let redisKey = RedisKey(requestKey)
-		let timestamp = Date.now.timeIntervalSince1970
+		let timestamp = Date().timeIntervalSince1970
 		
 		let requestCount = try await storage.rpush([ timestamp ], into: redisKey).get()
 		

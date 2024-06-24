@@ -33,8 +33,8 @@ extension SlidingWindowLog: Algorithm {
 		logging?.info("💡 ApiKey: \(apiKey)")
 		let redisKey = RedisKey(apiKey)
 		
-		let requestDate = Date.now
-		let outdatedRequestLimiteDate = Date.now.addingTimeInterval(-configuration.timeWindowDuration.inSeconds)
+		let requestDate = Date()
+		let outdatedRequestLimiteDate = Date().addingTimeInterval(-configuration.timeWindowDuration.inSeconds)
 		
 		// 1. Delete outdated request
 		let topBound: Double = Double(outdatedRequestLimiteDate.timeIntervalSinceReferenceDate)

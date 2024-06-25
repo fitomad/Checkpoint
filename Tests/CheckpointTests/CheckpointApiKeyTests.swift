@@ -31,6 +31,8 @@ final class CheckpointApiKeyTests: XCTestCase {
 																	 database: 0)
 			
 			return app.redis("rate")
+		} logging: {
+			app.logger
 		}
 		
 		let checkpoint = Checkpoint(using: leakingBucketAlgorithm)

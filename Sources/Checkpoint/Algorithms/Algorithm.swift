@@ -12,14 +12,22 @@ import Vapor
 public typealias StorageAction = () -> Application.Redis
 public typealias LoggerAction = () -> Logger
 
+/// Definition for the different Rate-Limit algorithims
 public protocol Algorithm: Sendable {
+	/// The configuration type used in a specific algorithim
 	associatedtype ConfigurationType
 	
+	/// The Redis database used to store the request data
 	var storage: Application.Redis { get }
+	/// A `Logger` object created on Vapor
 	var logging: Logger? { get }
 	
+	/// Create a new Rate-Limit algorithim with a given configuration,
+	/// storage and logging
 	init(configuration: () -> ConfigurationType, storage: StorageAction, logging: LoggerAction?)
 	
+	/// Performs the algorithim logic to check if a request is valid
+	/// or reach the rate-limit specified on the algorithim's configuration
 	func checkRequest(_ request: Request) async throws
 }
 

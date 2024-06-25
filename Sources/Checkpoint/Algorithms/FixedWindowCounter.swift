@@ -10,22 +10,30 @@ import Redis
 import Vapor
 
 /**
- Algorithm can be described as follows:
- 
- 1. Timeline is divided into fixed time windows.
- 2. Each time window has a counter.
- 3. When a request comes in, the counter for the current time window is incremented.
- 4. If the counter is greater than the rate limit, the request is rejected.
- 5. If the counter is less than the rate limit, the request is accepted.
+	Fixed Window Counter algorithm presents the workflow described as follows:
+
+	1. Define a time window has a counter where the store the number of requets for a given time window.
+	3. When a user makes a request, the counter for the current time window is incremented by 1.
+	4. If the counter is greater than the rate limit, the request is rejected and whe send an HTTP 429 code status.
+	5. If the counter is less than the rate limit, the request is accepted.
 */
 public final class FixedWindowCounter {
+	// Configuration for this rate-limit algorithm
 	private let configuration: FixedWindowCounterConfiguration
+	// The Redis database where we store the request information
 	public let storage: Application.Redis
+	// A logger set during Vapor initialization
 	public let logging: Logger?
 	
+	// The Combine Timer publishers
 	private var cancellable: AnyCancellable?
+	// Keys stored in a given time window
 	private var keys = Set<String>()
 	
+	/**
+	 
+	 
+	*/
 	public init(configuration: () -> FixedWindowCounterConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
 		self.configuration = configuration()
 		self.storage = storage()
@@ -35,12 +43,16 @@ public final class FixedWindowCounter {
 									   performing: resetWindow)
 	}
 	
+	/**
+	 
+	*/
 	deinit {
 		cancellable?.cancel()
 	}
 }
 
 extension FixedWindowCounter: WindowBasedAlgorithm {
+	/// 
 	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return

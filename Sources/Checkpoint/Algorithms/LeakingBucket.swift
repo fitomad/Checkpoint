@@ -48,10 +48,6 @@ public final class LeakingBucket {
 }
 
 extension LeakingBucket: WindowBasedAlgorithm {
-	var isValidRequest: Bool {
-		return true
-	}
-	
 	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return
@@ -68,7 +64,6 @@ extension LeakingBucket: WindowBasedAlgorithm {
 		
 		// 1. New request, remove one token from the bucket
 		let bucketItemsCount = try await storage.increment(redisKey).get()
-		logging?.info("⌚️ \(requestKey) = \(bucketItemsCount)")
 		// 2. If buckes is empty, throw an error
 		if bucketItemsCount > configuration.bucketSize {
 			throw Abort(.tooManyRequests)

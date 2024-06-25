@@ -65,7 +65,6 @@ extension TokenBucket: WindowBasedAlgorithm {
 		
 		// 1. New request, remove one token from the bucket
 		let bucketItemsCount = try await storage.decrement(redisKey).get()
-		logging?.info("⌚️ \(requestKey) = \(bucketItemsCount)")
 		// 2. If buckes is empty, throw an error
 		if bucketItemsCount < 0 {
 			throw Abort(.tooManyRequests)

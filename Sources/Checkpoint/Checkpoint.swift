@@ -8,16 +8,17 @@
 import Redis
 import Vapor
 
-public typealias CheckpointAction = (Request) -> Void
-public typealias CheckpointErrorAction = (Request, Response, Checkpoint.ErrorMetadata) -> Void
+public typealias CheckpointHandler = (Request) -> Void
+public typealias CheckpointRateLimitHandler = (Request, Response, Checkpoint.ErrorMetadata) -> Void
+public typealias CheckpointErrorHandler = (Request, Response, AbortError, Checkpoint.ErrorMetadata) -> Void
 
 public final class Checkpoint {
 	private let algorithm: any Algorithm
 	
-	public var willCheck: CheckpointAction?
-	public var didCheck: CheckpointAction?
-	public var didFailWithTooManyRequest: CheckpointErrorAction?
-	public var didFail: CheckpointErrorAction?
+	public var willCheck: CheckpointHandler?
+	public var didCheck: CheckpointHandler?
+	public var didFailWithTooManyRequest: CheckpointRateLimitHandler?
+	public var didFail: CheckpointErrorHandler?
 	
 	public init(using algorithm: some Algorithm) {
 		self.algorithm = algorithm
@@ -43,7 +44,7 @@ extension Checkpoint: AsyncMiddleware {
 								headers: errorMetadata.httpHeaders,
 								reason: errorMetadata.reason)
 				default:
-					didFail?(request, response, errorMetadata)
+					didFail?(request, response, abort, errorMetadata)
 					
 					throw Abort(.badRequest,
 								headers: errorMetadata.httpHeaders,

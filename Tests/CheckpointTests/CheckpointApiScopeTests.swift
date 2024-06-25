@@ -32,6 +32,8 @@ final class CheckpointApiScoreTests: XCTestCase {
 																	 database: 0)
 			
 			return app.redis("rate")
+		} logging: {
+			app.logger
 		}
 		
 		let checkpoint = Checkpoint(using: leakingBucketAlgorithm)
@@ -117,6 +119,8 @@ final class CheckpointApiScoreTests: XCTestCase {
 																	 database: 0)
 			
 			return app.redis("rate")
+		} logging: {
+			app.logger
 		}
 		
 		
@@ -159,6 +163,8 @@ final class CheckpointApiScoreTests: XCTestCase {
 																	 database: 0)
 			
 			return app.redis("rate")
+		} logging: {
+			app.logger
 		}
 		
 		

@@ -1,18 +1,17 @@
+//
+//  CheckpointApiKeyTests.swift
+//  
+//
+//  Created by Adolfo Vera Blasco on 23/6/24.
+//
+
 import Redis
 import XCTest
 import XCTVapor
 @testable import Checkpoint
 
-final class CheckpointTests: XCTestCase {
-    func testExample() throws {
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
-
-        // Defining Test Cases and Test Methods
-        // https://developer.apple.com/documentation/xctest/defining_test_cases_and_test_methods
-    }
-	
-	func testLeakingBucket() {
+final class CheckpointApiKeyTests: XCTestCase {
+	func testLeakingBucketWithHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -21,9 +20,10 @@ final class CheckpointTests: XCTestCase {
 		}
 		
 		let leakingBucketAlgorithm = LeakingBucket {
-			LeakingBucketConfiguration(bucketSize: 10, 
+			LeakingBucketConfiguration(bucketSize: 10,
 									   removingRate: 5,
-									   removingTimeInterval: .minutes(count: 1))
+									   removingTimeInterval: .minutes(count: 1),
+									   appliedTo: .header(key: "X-ApiKey"))
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -31,15 +31,20 @@ final class CheckpointTests: XCTestCase {
 																	 database: 0)
 			
 			return app.redis("rate")
+		} logging: {
+			app.logger
 		}
 		
 		let checkpoint = Checkpoint(using: leakingBucketAlgorithm)
 		
 		app.middleware.use(checkpoint)
 		
+		var apiKeyHeader = HTTPHeaders()
+		apiKeyHeader.add(name: "X-ApiKey", value: "fitomad#1")
+		
 		(0...20).forEach { index in
-			try? app.test(.GET, "leaking-bucket", afterResponse: { testResponse in
-				app.logger.info("\(index) = \(testResponse.status)")
+			try? app.test(.GET, "leaking-bucket", headers: apiKeyHeader, afterResponse: { testResponse in
+				app.logger.info("leaking-bucket \(index) = \(testResponse.status)")
 				if index < 10 {
 					XCTAssertEqual(testResponse.status, .ok)
 				} else {
@@ -49,7 +54,7 @@ final class CheckpointTests: XCTestCase {
 		}
 	}
 	
-	func testTokenBucket() throws {
+	func testTokenBucketWithHeader() throws {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -60,7 +65,8 @@ final class CheckpointTests: XCTestCase {
 		let tokenbucketAlgorithm = TokenBucket {
 			TokenBucketConfiguration(bucketSize: 10,
 									 refillRate: 0,
-									 refillTimeInterval: .seconds(count: 20))
+									 refillTimeInterval: .seconds(count: 20),
+									 appliedTo: .header(key: "X-ApiKey"))
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -76,9 +82,12 @@ final class CheckpointTests: XCTestCase {
 		
 		app.middleware.use(checkpoint)
 		
+		var apiKeyHeader = HTTPHeaders()
+		apiKeyHeader.add(name: "X-ApiKey", value: "fitomad#2")
+		
 		(0...20).forEach { index in
-			try? app.test(.GET, "token-bucket", afterResponse: { testResponse in
-				app.logger.info("\(index) = \(testResponse.status)")
+			try? app.test(.GET, "token-bucket", headers: apiKeyHeader, afterResponse: { testResponse in
+				app.logger.info("token-bucket \(index) = \(testResponse.status)")
 				if index < 10 {
 					XCTAssertEqual(testResponse.status, .ok)
 				} else {
@@ -88,7 +97,7 @@ final class CheckpointTests: XCTestCase {
 		}
 	}
 	
-	func testFixedWindowCounter() {
+	func testFixedWindowCounterWithHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -98,7 +107,8 @@ final class CheckpointTests: XCTestCase {
 		
 		let fixedWindowAlgorithm = FixedWindowCounter {
 			FixedWindowCounterConfiguration(requestPerWindow: 10,
-											timeWindowDuration: .minutes(count: 2))
+											timeWindowDuration: .minutes(count: 2),
+											appliedTo: .header(key: "X-ApiKey"))
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -113,9 +123,12 @@ final class CheckpointTests: XCTestCase {
 		
 		app.middleware.use(checkpoint)
 		
+		var apiKeyHeader = HTTPHeaders()
+		apiKeyHeader.add(name: "X-ApiKey", value: "fitomad#3")
+		
 		(0...20).forEach { index in
-			try? app.test(.GET, "fixed-window-counter", afterResponse: { testResponse in
-				app.logger.info("\(index) = \(testResponse.status)")
+			try? app.test(.GET, "fixed-window-counter", headers: apiKeyHeader, afterResponse: { testResponse in
+				app.logger.info("fixed-window-counter \(index) = \(testResponse.status)")
 				if index < 10 {
 					XCTAssertEqual(testResponse.status, .ok)
 				} else {
@@ -125,7 +138,7 @@ final class CheckpointTests: XCTestCase {
 		}
 	}
 	
-	func testSlidingWindowLog() {
+	func testSlidingWindowLogWithHeader() {
 		let app = Application(.testing)
 		defer { app.shutdown() }
 		
@@ -135,7 +148,8 @@ final class CheckpointTests: XCTestCase {
 		
 		let slidingWindowLogAlgorith = SlidingWindowLog {
 			SlidingWindowLogConfiguration(requestPerWindow: 10,
-										  windowDuration: .minutes(count: 2))
+										  windowDuration: .minutes(count: 2),
+										  appliedTo: .header(key: "X-ApiKey"))
 		} storage: {
 			// Rate limit database in Redis
 			app.redis("rate").configuration = try? RedisConfiguration(hostname: "localhost",
@@ -150,9 +164,12 @@ final class CheckpointTests: XCTestCase {
 		
 		app.middleware.use(checkpoint)
 		
+		var apiKeyHeader = HTTPHeaders()
+		apiKeyHeader.add(name: "X-ApiKey", value: "fitomad#4")
+		
 		(0...20).forEach { index in
-			try? app.test(.GET, "sliding-window-log", afterResponse: { testResponse in
-				app.logger.info("\(index) = \(testResponse.status)")
+			try? app.test(.GET, "sliding-window-log", headers: apiKeyHeader, afterResponse: { testResponse in
+				app.logger.info("sliding-window-log \(index) = \(testResponse.status)")
 				if index < 10 {
 					XCTAssertEqual(testResponse.status, .ok)
 				} else {

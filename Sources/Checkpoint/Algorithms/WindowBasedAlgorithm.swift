@@ -8,15 +8,18 @@
 import Combine
 import Foundation
 
-typealias WindowBasedAction = () throws -> Void
+public typealias WindowBasedAction = () throws -> Void
 
-protocol WindowBasedLimiter: Limiter {
+/// For those algorithims thar works with fixed time windows.
+public protocol WindowBasedAlgorithm: Algorithm {
+	/// Start the timer for a given duration (time window)
 	func startWindow(havingDuration seconds: Double, performing action: @escaping WindowBasedAction) -> AnyCancellable
+	/// Perfomrs the reset operation when the time windo ends.
 	func resetWindow() async throws
 }
 
-extension WindowBasedLimiter {
-	func startWindow(havingDuration seconds: Double, performing action: @escaping WindowBasedAction) -> AnyCancellable {
+extension WindowBasedAlgorithm {
+	public func startWindow(havingDuration seconds: Double, performing action: @escaping WindowBasedAction) -> AnyCancellable {
 		var cancellable = Timer.publish(every: seconds, on: .main, in: .common)
 			.autoconnect()
 			.sink { _ in

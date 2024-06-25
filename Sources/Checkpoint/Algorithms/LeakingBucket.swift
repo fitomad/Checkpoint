@@ -18,19 +18,15 @@ import Vapor
  4. If the bucket is not full, we allow the request and add 1 token from the bucket.
  5. Tokens are removed at a fixed rate of r tokens per second. Let’s say 1 token per second.
 */
-final class LeakingBucket {
+public final class LeakingBucket {
 	private let configuration: LeakingBucketConfiguration
-	let storage: Application.Redis
-	let logging: Logger?
+	public let storage: Application.Redis
+	public let logging: Logger?
 	
 	private var cancellable: AnyCancellable?
 	private var keys = Set<String>()
 	
-	private var redisKey: RedisKey {
-		RedisKey("")
-	}
-	
-	init(configuration: () -> LeakingBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
+	public init(configuration: () -> LeakingBucketConfiguration, storage: StorageAction, logging: LoggerAction? = nil) {
 		self.configuration = configuration()
 		self.storage = storage()
 		self.logging = logging?()
@@ -46,17 +42,13 @@ final class LeakingBucket {
 		do {
 			try await storage.set(key, to: 0).get()
 		} catch let redisError {
-			logging?.error("🚨 Problem setting key \(key.rawValue) to value \(configuration.bucketSize)")
+			logging?.error("🚨 Problem setting key \(key.rawValue) to value \(configuration.bucketSize): \(redisError.localizedDescription)")
 		}
 	}
 }
 
-extension LeakingBucket: WindowBasedLimiter {
-	var isValidRequest: Bool {
-		return true
-	}
-	
-	func checkRequest(_ request: Request) async throws {
+extension LeakingBucket: WindowBasedAlgorithm {
+	public func checkRequest(_ request: Request) async throws {
 		guard let requestKey = try? valueFor(field: configuration.appliedField, in: request, inside: configuration.scope) else {
 			return
 		}
@@ -64,7 +56,7 @@ extension LeakingBucket: WindowBasedLimiter {
 		keys.insert(requestKey)
 		let redisKey = RedisKey(requestKey)
 		
-		let keyExists = await try storage.exists(redisKey).get()
+		let keyExists = try await storage.exists(redisKey).get()
 		
 		if keyExists == 0 {
 			await preparaStorageFor(key: redisKey)
@@ -72,24 +64,27 @@ extension LeakingBucket: WindowBasedLimiter {
 		
 		// 1. New request, remove one token from the bucket
 		let bucketItemsCount = try await storage.increment(redisKey).get()
-		logging?.info("⌚️ \(requestKey) = \(bucketItemsCount)")
 		// 2. If buckes is empty, throw an error
-		if bucketItemsCount >= configuration.bucketSize {
+		if bucketItemsCount > configuration.bucketSize {
 			throw Abort(.tooManyRequests)
 		}
 	}
 	
-	func resetWindow() throws {
-		Task(priority: .userInitiated) {
-			let respValue = try await storage.get(redisKey).get()
-		
-			var newBucketSize = 0
+	public func resetWindow() throws {
+		keys.forEach { key in
+			Task(priority: .userInitiated) {
+				let redisKey = RedisKey(key)
+				
+				let respValue = try await storage.get(redisKey).get()
 			
-			if let currentBucketSize = respValue.int {
-				newBucketSize = currentBucketSize < configuration.tokenRemovingRate ? 0 : (currentBucketSize - configuration.tokenRemovingRate)
+				var newBucketSize = 0
+				
+				if let currentBucketSize = respValue.int {
+					newBucketSize = currentBucketSize < configuration.tokenRemovingRate ? 0 : (currentBucketSize - configuration.tokenRemovingRate)
+				}
+				
+				try await storage.decrement(redisKey, by: newBucketSize).get()
 			}
-			
-			try await storage.decrement(redisKey, by: newBucketSize).get()
 		}
 	}
 }

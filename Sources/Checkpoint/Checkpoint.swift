@@ -8,69 +8,82 @@
 import Redis
 import Vapor
 
-final class Checkpoint {
-	let limiter: any Limiter
+public typealias CheckpointHandler = (Request) -> Void
+public typealias CheckpointRateLimitHandler = (Request, Response, Checkpoint.ErrorMetadata) -> Void
+public typealias CheckpointErrorHandler = (Request, Response, AbortError, Checkpoint.ErrorMetadata) -> Void
+
+public final class Checkpoint {
+	private let algorithm: any Algorithm
 	
-	init(using algorithm: some Limiter) {
-		self.limiter = algorithm
+	public var willCheck: CheckpointHandler?
+	public var didCheck: CheckpointHandler?
+	public var didFailWithTooManyRequest: CheckpointRateLimitHandler?
+	public var didFail: CheckpointErrorHandler?
+	
+	public init(using algorithm: some Algorithm) {
+		self.algorithm = algorithm
 	}
 }
 
 extension Checkpoint: AsyncMiddleware {
-	func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-		limiter.logging?.info("👉 RateLimitMiddleware request")
+	public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
 		let response = try await next.respond(to: request)
-		limiter.logging?.info("👈 RateLimitMiddleware reponse")
 		
 		do {
+			willCheck?(request)
 			try await checkRateLimitFor(request: request)
-			response.headers.add(name: "X-App-Version", value: "v1.0.0")
-			limiter.logging?.info("💡 Header Setted.")
+			didCheck?(request)
 		} catch let abort as AbortError {
-			throw abort
-		} catch {
-			response.headers.add(name: "X-Rate-Limit", value: "8")
-			limiter.logging?.info("🚨 Header Setted.")
-			throw Abort(.tooManyRequests,
-						headers: response.headers,
-						reason: HTTPErrorDescription.rateLimitReached)
+			let errorMetadata = ErrorMetadata()
+			
+			switch abort.status {
+				case .tooManyRequests:
+					didFailWithTooManyRequest?(request, response, errorMetadata)
+					
+					throw Abort(.tooManyRequests,
+								headers: errorMetadata.httpHeaders,
+								reason: errorMetadata.reason)
+				default:
+					didFail?(request, response, abort, errorMetadata)
+					
+					throw Abort(.badRequest,
+								headers: errorMetadata.httpHeaders,
+								reason: errorMetadata.reason)
+			}
 		}
 
 		return response
 	}
 	
 	private func checkRateLimitFor(request: Request) async throws {
-		try await limiter.checkRequest(request)
+		try await algorithm.checkRequest(request)
+	}
+}
+
+public extension Checkpoint {
+	final class ErrorMetadata {
+		public var headers: [String : String]?
+		public var reason: String?
+		
+		var httpHeaders: HTTPHeaders {
+			var httpHeaders = HTTPHeaders()
+			
+			guard let headers else {
+				return httpHeaders
+			}
+			
+			for (key, content) in headers {
+				httpHeaders.add(name: key, value: content)
+			}
+			
+			return httpHeaders
+		}
 	}
 }
 
 extension Checkpoint {
-	enum Constants {
-		static let apiKeyHeader = "X-ApiKey"
-		static let rateLimitDB = "rate-limit"
-	}
-	
 	enum HTTPErrorDescription {
 		static let unauthorized = "X-Api-Key header not available in the request"
 		static let rateLimitReached = "You have exceed your ApiKey network requests rate"
 	}
-}
-
-extension Checkpoint {
-	/*
-	enum Strategy {
-		case tokenBucket(configuration: TokenBucket.Configuration)
-		case leakingBucket(configuration: LeakingBucket.Configuration)
-		case fixedWindowCounter(configuration: FixedWindowCounter.Configuration)
-		case slidingWindowLog(configuration: SlidingWindowLog.Configuration)
-	}
-	*/
-	
-}
-
-enum Strategy {
-	case tokenBucket
-	case leakingBucket
-	case fixedWindowCounter
-	case slidingWindowLog
 }
